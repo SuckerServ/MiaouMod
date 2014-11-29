@@ -43,7 +43,7 @@ local function send_connect_message(cn)
             end
         end
 
-        local normal_message = server.parse_message(dest_cn, "client_connect", {country = country, name = "server.player_name(cn)", cn = cn, priv = priv})
+        local normal_message = server.parse_message(dest_cn, "client_connect", {country = country, name = server.player_name(cn), cn = cn, priv = priv})
 
         if priv == "" then
             normal_message = normal_message:sub(1, -5)

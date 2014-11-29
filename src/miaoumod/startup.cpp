@@ -1,10 +1,38 @@
 #include <iostream>
 #include <unistd.h>
+#include <signal.h>
 #include "miaoumod.hpp"
 #include "events.hpp"
 #include "utils/files.hpp"
 
+extern void cleanupserver();
+extern void kicknonlocalclients(int reason = 0);
+
 namespace miaoumod {
+void shutdown(int val)
+{
+    kicknonlocalclients();
+
+    event_shutdown(event_listeners(), std::make_tuple(static_cast<int>(SHUTDOWN_NORMAL)));
+
+    lua::shutdown(miaoumod::lua::get_lua_state());
+    delete_temp_files_on_shutdown(val);
+
+    cleanupserver();
+
+    exit(0);
+}
+
+
+void register_signals(lua_State *L)
+{
+    struct sigaction terminate_action;
+    sigemptyset(&terminate_action.sa_mask);
+    terminate_action.sa_handler = miaoumod::shutdown;
+    terminate_action.sa_flags = 0;
+    sigaction(SIGINT, &terminate_action, NULL);
+    sigaction(SIGTERM, &terminate_action, NULL);
+}
 
 /**
     Initializes everything in miaoumod. This function is called at server startup and server reload.
@@ -17,7 +45,9 @@ void init()
 
     lua_State * L = miaoumod::lua::init();
 
-/*    if(luaL_loadfile(L, INIT_SCRIPT) == 0)
+    register_signals(L);
+
+    if(luaL_loadfile(L, INIT_SCRIPT) == 0)
     {
         miaoumod::event_listeners().add_listener("init"); // Take the value of the top of the stack to add
         // to the init listeners table
@@ -28,22 +58,8 @@ void init()
         lua_pop(L, 1);
     }
 
-    miaoumod::event_init(miaoumod::event_listeners(), std::make_tuple());*/
-
- luaL_dostring(L, "package.path = package.path .. \";script/base/?.lua\"");
-if(luaL_dostring(L, "require \"init\""))
-{
-printf("%s\n", lua_tostring(L, -1));
-lua_pop(L, 1);
-lua_close(L);
-}
-
-}
-
-void shutdown(int val, lua_State * L)
-{
-    lua::shutdown(L);
-    delete_temp_files_on_shutdown(val);
+    if(miaoumod::event_init(miaoumod::event_listeners(), std::make_tuple()))
+	std::cerr<<"ERROR"<<std::endl;
 }
 
 }

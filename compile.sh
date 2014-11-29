@@ -61,4 +61,4 @@ fi
 
 # Give right execution permissions to executables
 cd ../bin
-for i in tess_server server monitor env.sh utils/newserver.sh utils/convert utils/luapp utils/keygen utils/shell.rb utils/shell.pl; do chmod +x $i; done
+for i in tess_server server monitor env.sh utils/newserver.sh utils/keygen; do chmod +x $i; done

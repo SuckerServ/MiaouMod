@@ -29,3 +29,7 @@ end)
 server.event_handler("maploaded", function(cn)
         print("[EVENT]: maploaded", cn)
 end)
+
+server.event_handler("shutdown", function(id)
+	print("[EVENT]: shutdown", id)
+end)

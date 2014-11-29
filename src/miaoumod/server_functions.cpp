@@ -72,18 +72,223 @@ int player_sessionid(int cn)
     return (ci ? ci->sessionid : -1);
 }
 
+int player_ownernum(int cn)
+{
+    return get_ci(cn)->ownernum;
+}
+
 const char * player_ip(int cn)
 {
     return get_ci(cn)->hostname();
 }
 
+std::string player_name(int cn) {
+    convert2utf8 utf8name(get_ci(cn)->name);
+    return utf8name.stdstr();
+}
+
+unsigned long player_iplong(int cn)
+{
+    return ntohl(getclientip(get_ci(cn)->clientnum));
+}
+
+int player_status_code(int cn)
+{
+    return get_ci(cn)->state.state;
+}
+
+int player_ping(int cn)
+{
+    return get_ci(cn)->ping;
+}
+
+int player_ping_update(int cn)
+{
+    return get_ci(cn)->lastpingupdate;
+}
+
+int player_lag(int cn)
+{
+    return get_ci(cn)->lag;
+}
+
+int player_real_lag(int cn)
+{
+    return totalmillis - get_ci(cn)->lastposupdate;
+}
+
+int player_maploaded(int cn)
+{
+    return get_ci(cn)->maploaded;
+}
+
+int player_deathmillis(int cn)
+{
+    clientinfo * ci = get_ci(cn);
+    return ci->state.lastdeath;
+}
+
+int player_frags(int cn)
+{
+    clientinfo * ci = get_ci(cn);
+    return ci->state.frags + ci->state.suicides + ci->state.teamkills;
+}
+
+int player_score(int cn)
+{
+    return get_ci(cn)->state.frags;
+}
+
+int player_deaths(int cn)
+{
+    return get_ci(cn)->state.deaths;
+}
+
+int player_suicides(int cn)
+{
+    return get_ci(cn)->state.suicides;
+}
+
+int player_teamkills(int cn)
+{
+    return get_ci(cn)->state.teamkills;
+}
+
+int player_damage(int cn)
+{
+    return get_ci(cn)->state.damage;
+}
+
+int player_damagewasted(int cn)
+{
+    clientinfo * ci = get_ci(cn);
+    return ci->state.explosivedamage + ci->state.shotdamage - ci->state.damage;
+}
+
+int player_maxhealth(int cn)
+{
+    return get_ci(cn)->state.maxhealth;
+}
+
+int player_health(int cn)
+{
+    return get_ci(cn)->state.health;
+}
+
+int player_gun(int cn)
+{
+    return get_ci(cn)->state.gunselect;
+}
+
+int player_hits(int cn)
+{
+    return get_ci(cn)->state.hits;
+}
+
+int player_misses(int cn)
+{
+    return get_ci(cn)->state.misses;
+}
+
+int player_shots(int cn)
+{
+    return get_ci(cn)->state.shots;
+}
+
+int player_accuracy(int cn)
+{
+    clientinfo * ci = get_ci(cn);
+    int shots = ci->state.shots;
+    int hits = shots - ci->state.misses;
+    return static_cast<int>(roundf(static_cast<float>(hits)/std::max(shots,1)*100));
+}
+
+int player_accuracy2(int cn)
+{
+    clientinfo * ci = get_ci(cn);
+    return static_cast<int>(roundf(static_cast<float>(ci->state.damage*100/max(ci->state.shotdamage,1))));
+}
+
+int player_clientmillis(int cn)
+{
+    clientinfo * ci = get_ci(cn);
+    return ci->clientmillis;
+}
+
+int player_privilege_code(int cn)
+{
+    return get_ci(cn)->privilege;
+}
+
+const char * player_privilege(int cn)
+{
+    return privname(get_ci(cn)->privilege);
+}
+
+const char * player_status(int cn)
+{
+    switch(get_ci(cn)->state.state)
+    {
+        case CS_ALIVE: return "alive";
+        case CS_DEAD: return "dead";
+        case CS_SPAWNING: return "spawning";
+        case CS_LAGGED: return "lagged";
+        case CS_SPECTATOR: return "spectator";
+        case CS_EDITING: return "editing";
+        default: return "unknown";
+    }
+}
+
+int player_connection_time(int cn)
+{
+    return (totalmillis - get_ci(cn)->connectmillis)/1000;
+}
+
+int player_timeplayed(int cn)
+{
+    clientinfo * ci = get_ci(cn);
+    return (ci->state.timeplayed + (ci->state.state != CS_SPECTATOR ? (lastmillis - ci->state.lasttimeplayed) : 0))/1000;
+}
+
+void player_slay(int cn)
+{
+    clientinfo * ci = get_ci(cn);
+    if(ci->state.state != CS_ALIVE) return;
+    ci->state.state = CS_DEAD;
+    sendf(-1, 1, "ri2", N_FORCEDEATH, cn);
+}
+
+bool player_isbot(int cn){return get_ci(cn)->state.aitype != AI_NONE;}
+
+bool player_has_joined_game(int cn)
+{
+    return get_ci(cn)->connected;
+}
+
+void player_join_game(int cn)
+{
+    clientinfo * ci = get_ci(cn);
+    if(!ci->connected)
+    {
+        connected(ci);
+    }
+}
+
+void player_reject_join_game(int cn)
+{
+    clientinfo * ci = get_ci(cn);
+    if(!ci->connected)
+    {
+        disconnect_client(cn, ci->connectauth);
+    }
+}
 
 void player_msg(int cn, const char * text)
 {
     convert2cube textcubeenc(text);
     clientinfo * ci = get_ci(cn);
     if(ci->state.aitype != AI_NONE) return;//TODO assert(false) to catch bugs
-    sendf(cn, 1, "ris", N_SERVMSG, text);
+    sendf(cn, 1, "ris", N_SERVMSG, textcubeenc.str());
 }
 
 void server_msg(const char * text)

@@ -19,6 +19,7 @@ extern "C"
 
 namespace miaoumod {
     void init();
+    void shutdown(int);
     miaoumod::lua::event_environment & event_listeners();
 
     namespace lua {
@@ -26,6 +27,12 @@ namespace miaoumod {
         lua_State * get_lua_state();
         void shutdown(lua_State *);
     }
+
+    enum{
+        SHUTDOWN_NORMAL,
+        SHUTDOWN_RESTART,
+        SHUTDOWN_RELOAD
+    };
 }
 
 #endif

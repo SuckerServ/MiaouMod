@@ -1,6 +1,3 @@
-//#include <cassert>
-#include <exception>
-#include <iostream>
 #include "miaoumod.hpp"
 #include "events.hpp"
 #include "lua/modules.hpp"
@@ -20,28 +17,6 @@ lua::event_environment & event_listeners()
 }
 
 namespace lua {
-
-     #include <execinfo.h>
-     #include <stdio.h>
-int panic(lua_State* L)
-{
-    lua_getfield(L, LUA_GLOBALSINDEX, "debug");
-    lua_getfield(L, -1, "traceback");
-    lua_pushvalue(L, 1);
-    lua_pushinteger(L, 2);
-    lua_call(L, 2, 1);
-    fprintf(stderr, "%s\n", lua_tostring(L, -1));
-
-    void* callstack[128];
-     int i, frames = backtrace(callstack, 128);
-     char** strs = backtrace_symbols(callstack, frames);
-     for (i = 0; i < frames; ++i) {
-         printf("%s\n", strs[i]);
-     }
-     free(strs);
-
-    return 1;
-}
 
 lua_State * get_lua_state()
 {
@@ -72,10 +47,6 @@ lua_State * init()
 
     uv_loop_t *loop = uv_default_loop();
 
-#ifdef USE_OPENSSL
-//    luvit_init_ssl();
-#endif
-
     if (luvit_init(L, loop))
         std::cerr<<"luvit_init has failed"<<std::endl;
 
@@ -104,8 +75,6 @@ lua_State * init()
 
     load_modules(L);
 
-//    lua_atpanic(L, panic);
-
     miaoumod::Lg = L;
 
     return L;
@@ -117,7 +86,12 @@ void shutdown(lua_State * L)
 
     uv_stop(uv_default_loop());
 
+    delete miaoumod::event_environment;
+
     lua_close(L);
+
+    miaoumod::event_environment = NULL;
+    miaoumod::Lg = NULL;
 }
 
 }//namespace lua

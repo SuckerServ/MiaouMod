@@ -121,7 +121,7 @@ end
 
 local function send_command_error(cn, error_message)
   
-    local output_message = server.command_error_message
+    local output_message = server.parse_message(cn, "command_error")
     if error_message then
         output_message = output_message .. ": " .. error_message .. "."
     else
@@ -155,7 +155,7 @@ local function exec_command(cn, text, force)
 
     
     if not arguments then
-        server.player_msg(cn, server.command_syntax_message .. error_message)
+        server.player_msg(cn, "command_syntax", { err = error_message })
         return -1   
     end
     
@@ -164,7 +164,7 @@ local function exec_command(cn, text, force)
     local command = player_commands[command_name]
     
     if not command then
-        server.player_msg(cn, server.command_not_found_message)
+        server.player_msg(cn, "command_not_found")
         return -1
     end
     
@@ -187,7 +187,7 @@ local function exec_command(cn, text, force)
     if pcall_status == false then
         local message = success  -- success value is the error message returned by pcall
         server.log_error(string.format("The #%s player command failed with error: %s", command_name, message[1]))
-        server.player_msg(cn, server.command_internal_error_message)
+        server.player_msg(cn, "command_internal_error")
     end
     
     if success == false then

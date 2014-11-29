@@ -1,19 +1,21 @@
 package.path = package.path .. ";script/package/?.lua;;script/package/?/init.lua"
 package.cpath = package.cpath .. ";lib/?.so;lib/lib?.so"
 
-local _io = io
-local _os = os
-local _math = math
-local _string = string
-
 local luvit = require "luvit" -- Init luvit
 
-io = _io
-os = _os
-math = _math
-string = _string
+setmetatable(_G, {
+  __index = nil,
+  __newindex = nil,
+})
+
 
 local event_listener = require("script/base/event")
+
+os = require("os")
+math = require("math")
+string = require("string")
+io = require("io")
+table = require("table")
 
 server = require("script/base/server")
 
@@ -22,6 +24,8 @@ server.cancel_handler = event_listener.remove
 server.cancel_handlers = event_listener.clear_all
 server.create_event_signal = event_listener.create_event
 server.cancel_event_signal = event_listener.destroy_event
+
+server.log_error = print
 
 dofile("script/base/player/object.lua")
 dofile("script/base/player/iterators.lua")
@@ -38,3 +42,5 @@ dofile("script/base/messages.lua")
 dofile("script/base/banner.lua")
 
 dofile("script/base/logevents.lua")
+
+server.enable_commands({"help", "eval"})

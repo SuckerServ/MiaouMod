@@ -78,12 +78,12 @@ install(FILES
 
 
 ## LuaCrypto ##
-execute_process(
-    COMMAND git submodule update --init src/luacrypto
-    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-)
+#execute_process(
+#    COMMAND git submodule update --init src/luacrypto
+#    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+#)
 
-add_subdirectory(luacrypto)
+#add_subdirectory(luacrypto)
 
 ## libuv ##
 execute_process(
