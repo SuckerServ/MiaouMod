@@ -1,0 +1,18 @@
+[submodule "src/luatz"]
+	path = src/luatz
+	url = https://github.com/daurnimator/luatz.git
+[submodule "src/luvit"]
+	path = src/luvit
+	url = https://github.com/Theintercooler/luvit.git
+[submodule "src/uv"]
+	path = src/uv
+	url = https://github.com/Theintercooler/libuv.git
+[submodule "src/enet"]
+	path = src/enet
+	url = https://github.com/Theintercooler/enet.git
+[submodule "src/luacrypto"]
+	path = src/luacrypto
+	url = https://github.com/mkottman/luacrypto.git
+[submodule "src/libmaxminddb"]
+	path = src/libmaxminddb
+	url = https://github.com/maxmind/libmaxminddb.git

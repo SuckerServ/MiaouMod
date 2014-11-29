@@ -442,7 +442,7 @@ extern void flushpreloadedmodels(bool msg = true);
 extern bool matchanim(const char *name, const char *pattern);
 
 // UI
-
+#if 0
 namespace UI
 {
     bool showui(const char *name);
@@ -451,6 +451,7 @@ namespace UI
     void holdui(const char *name, bool on);
     bool uivisible(const char *name);
 }
+#endif
 
 // ragdoll
 
@@ -523,7 +524,7 @@ extern void gets2c();
 extern void notifywelcome();
 
 // crypto
-extern void genprivkey(const char *seed, vector<char> &privstr, vector<char> &pubstr);
+extern void genprivkey(const char *seed, vector<char> &privstr, vector<char> &pubstr, int seedlength);
 extern bool hashstring(const char *str, char *result, int maxlen);
 extern void answerchallenge(const char *privstr, const char *challenge, vector<char> &answerstr);
 extern void *parsepubkey(const char *pubstr);

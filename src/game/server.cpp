@@ -1,4 +1,6 @@
 #include "game.h"
+#include "miaoumod.hpp"
+#include "server_functions.hpp"
 
 namespace game
 {
@@ -116,16 +118,17 @@ namespace server
 
     struct servstate : gamestate
     {
-        vec o;
+        vec o, cam;
         int state, editstate;
         int lastdeath, deadflush, lastspawn, lifesequence;
         int lastshot;
         projectilestate<8> projs;
-        int frags, flags, deaths, teamkills, shotdamage, damage;
+        int frags, flags, deaths, suicides, teamkills, shotdamage, damage, explosivedamage, tokens, hits, misses, shots;
         int lasttimeplayed, timeplayed;
         float effectiveness;
+        int disconnecttime;
 
-        servstate() : state(CS_DEAD), editstate(CS_DEAD), lifesequence(0) {}
+        servstate() : state(CS_DEAD), editstate(CS_DEAD), lifesequence(0), disconnecttime(0) {}
 
         bool isalive(int gamemillis)
         {
@@ -145,7 +148,7 @@ namespace server
 
             timeplayed = 0;
             effectiveness = 0;
-            frags = flags = deaths = teamkills = shotdamage = damage = 0;
+            frags = flags = deaths = suicides = teamkills = shotdamage = explosivedamage = damage = hits = misses = shots = tokens = 0;
 
             lastdeath = 0;
 
@@ -172,20 +175,27 @@ namespace server
     {
         uint ip;
         string name;
-        int frags, flags, deaths, teamkills, shotdamage, damage;
+        int frags, flags, deaths, suicides, teamkills, shotdamage, explosivedamage, damage, hits, misses, shots;
         int timeplayed;
         float effectiveness;
+        int disconnecttime;
 
         void save(servstate &gs)
         {
             frags = gs.frags;
             flags = gs.flags;
             deaths = gs.deaths;
+            suicides = gs.suicides;
             teamkills = gs.teamkills;
             shotdamage = gs.shotdamage;
+            explosivedamage = gs.explosivedamage;
             damage = gs.damage;
             timeplayed = gs.timeplayed;
             effectiveness = gs.effectiveness;
+            hits = gs.hits;
+            misses = gs.misses;
+            shots = gs.shots;
+            disconnecttime = gs.disconnecttime;
         }
 
         void restore(servstate &gs)
@@ -193,11 +203,17 @@ namespace server
             gs.frags = frags;
             gs.flags = flags;
             gs.deaths = deaths;
+            gs.suicides = suicides;
             gs.teamkills = teamkills;
             gs.shotdamage = shotdamage;
+            gs.explosivedamage = explosivedamage;
             gs.damage = damage;
             gs.timeplayed = timeplayed;
             gs.effectiveness = effectiveness;
+            gs.hits = hits;
+            gs.misses = misses;
+            gs.shots = shots;
+            gs.disconnecttime = disconnecttime;
         }
     };
 
@@ -218,7 +234,7 @@ namespace server
         uchar *wsdata;
         int wslen;
         vector<clientinfo *> bots;
-        int ping, aireinit;
+        int ping, lastpingupdate, lastposupdate, lag, aireinit;
         string clientmap;
         int mapcrc;
         bool warned, gameclip;
@@ -230,6 +246,10 @@ namespace server
         void *authchallenge;
         int authkickvictim;
         char *authkickreason;
+
+        int clientmillis;
+        int last_lag;
+        int maploaded;
 
         clientinfo() : getdemo(NULL), getmap(NULL), clipboard(NULL), authchallenge(NULL), authkickreason(NULL) { reset(); }
         ~clientinfo() { events.deletecontents(); cleanclipboard(); cleanauth(); }
@@ -291,6 +311,7 @@ namespace server
             lastevent = 0;
             exceeded = 0;
             pushed = 0;
+            maploaded = 0;
             clientmap[0] = '\0';
             mapcrc = 0;
             warned = false;
@@ -336,6 +357,13 @@ namespace server
             position.setsize(0);
             messages.setsize(0);
             ping = 0;
+
+            lastpingupdate = 0;
+            lastposupdate = 0;
+            lag = 0;
+            clientmillis = 0;
+            last_lag = 0;
+
             aireinit = 0;
             needclipboard = 0;
             cleanclipboard();
@@ -352,6 +380,14 @@ namespace server
                 return servmillis;
             }
             else return gameoffset + clientmillis;
+        }
+
+        const char * hostname()const
+        {
+            static char hostname_buffer[16];
+            ENetAddress addr;
+            addr.host = getclientip(clientnum);
+            return ((enet_address_get_host_ip(&addr, hostname_buffer, sizeof(hostname_buffer)) == 0) ? hostname_buffer : "unknown");
         }
     };
 
@@ -1003,6 +1039,7 @@ namespace server
 
         prunedemos(1);
         adddemo();
+        miaoumod::event_endrecord(miaoumod::event_listeners(), std::make_tuple());
     }
 
     void writedemo(int chan, void *data, int len)
@@ -1047,6 +1084,8 @@ namespace server
         packetbuf p(MAXTRANS, ENET_PACKET_FLAG_RELIABLE);
         welcomepacket(p, NULL);
         writedemo(1, p.buf, p.len);
+
+        miaoumod::event_beginrecord(miaoumod::event_listeners(), std::make_tuple());
     }
 
     void listdemos(int cn)
@@ -1196,7 +1235,16 @@ namespace server
     {
         if(gamepaused==val) return;
         gamepaused = val;
-        sendf(-1, 1, "riii", N_PAUSEGAME, gamepaused ? 1 : 0, ci ? ci->clientnum : -1);
+        if(gamepaused)
+        {
+            if(!miaoumod::event_gamepaused(miaoumod::event_listeners(), std::make_tuple()))
+                sendf(-1, 1, "riii", N_PAUSEGAME, gamepaused ? 1 : 0, ci ? ci->clientnum : -1);
+        }
+        else
+        {
+            if(!miaoumod::event_gameresumed(miaoumod::event_listeners(), std::make_tuple()))
+                sendf(-1, 1, "riii", N_PAUSEGAME, gamepaused ? 1 : 0, ci ? ci->clientnum : -1);
+        }
     }
 
     void checkpausegame()
@@ -1365,6 +1413,10 @@ namespace server
         }
         putint(p, -1);
         sendpacket(-1, 1, p.finalize());
+
+        convert2utf8 utf8text(pass);
+        miaoumod::event_setmaster(miaoumod::event_listeners(), std::make_tuple(ci->clientnum, utf8text.str(), val));
+
         checkpausegame();
         return true;
     }
@@ -1395,6 +1447,10 @@ namespace server
                 uint ip = getclientip(victim);
                 addban(ip, 4*60*60000);
                 kickclients(ip, ci, priv);
+
+                convert2utf8 utf8name(ci->name);
+                convert2utf8 utf8text(reason);
+                miaoumod::event_kick_request(miaoumod::event_listeners(), std::make_tuple(ci->clientnum, utf8name.str(), 14400, victim, utf8text.str()));
             }
         }
         return false;
@@ -1648,9 +1704,9 @@ namespace server
     {
         if(clients.empty() || (!hasnonlocalclients() && !demorecord)) return false;
         enet_uint32 curtime = enet_time_get()-lastsend;
-        if(curtime<40 && !force) return false;
+        if(curtime<miaoumod::packetdelay && !force) return false;
         bool flush = buildworldstate();
-        lastsend += curtime - (curtime%40);
+        lastsend += curtime - (curtime%miaoumod::packetdelay);
         return flush;
     }
 
@@ -1894,6 +1950,8 @@ namespace server
 
     void changemap(const char *s, int mode)
     {
+        miaoumod::event_finishedgame(miaoumod::event_listeners(), std::make_tuple());
+
         stopdemo();
         pausegame(false);
         changegamespeed(100);
@@ -1948,10 +2006,14 @@ namespace server
         }
 
         if(smode) smode->setup();
+
+        convert2utf8 utf8mapname(smapname);
+        miaoumod::event_mapchange(miaoumod::event_listeners(), std::make_tuple(utf8mapname.str(), modename(gamemode,"unknown")));
     }
 
     void rotatemap(bool next)
     {
+        miaoumod::event_setnextgame(miaoumod::event_listeners(), std::make_tuple());
         if(!maprotations.inrange(curmaprotation))
         {
             changemap("", 0);
@@ -2003,6 +2065,8 @@ namespace server
             if(best && (best->count > (force ? 1 : maxvotes/2)))
             {
                 sendservmsg(force ? "vote passed by default" : "vote passed by majority");
+                convert2utf8 utf8mapname(best->map);
+                miaoumod::event_votepassed(miaoumod::event_listeners(), std::make_tuple(utf8mapname.str(), modename(best->mode)));
                 changemap(best->map, best->mode);
             }
             else rotatemap(true);
@@ -2063,7 +2127,8 @@ namespace server
             sendf(-1, 1, "ri2", N_TIMEUP, 0);
             if(smode) smode->intermission();
             changegamespeed(100);
-            interm = gamemillis + 10000;
+            interm = gamemillis + miaoumod::intermtime;
+            miaoumod::event_intermission(miaoumod::event_listeners(), std::make_tuple());
         }
     }
 
@@ -2071,6 +2136,11 @@ namespace server
 
     void dodamage(clientinfo *target, clientinfo *actor, int damage, int atk, const vec &hitpush = vec(0, 0, 0))
     {
+        if(miaoumod::event_damage(miaoumod::event_listeners(), std::make_tuple(target->clientnum, actor->clientnum, damage, atk, hitpush[0], hitpush[1], hitpush[2])))
+        {
+            return;
+        }
+
         servstate &ts = target->state;
         ts.dodamage(damage);
         if(target!=actor && !isteam(target->team, actor->team)) actor->state.damage += damage;
@@ -2085,6 +2155,7 @@ namespace server
         if(ts.health<=0)
         {
             target->state.deaths++;
+            target->state.suicides += actor==target;
             int fragvalue = smode ? smode->fragvalue(target, actor) : (target==actor || isteam(target->team, actor->team) ? -1 : 1);
             actor->state.frags += fragvalue;
             if(fragvalue>0)
@@ -2096,6 +2167,7 @@ namespace server
             }
             teaminfo *t = m_teammode && validteam(actor->team) ? &teaminfos[actor->team-1] : NULL;
             if(t) t->frags += fragvalue;
+            miaoumod::event_frag(miaoumod::event_listeners(), std::make_tuple(target->clientnum, actor->clientnum));
             sendf(-1, 1, "ri5", N_DIED, target->clientnum, actor->clientnum, actor->state.frags, t ? t->frags : 0);
             target->position.setsize(0);
             if(smode) smode->died(target, actor);
@@ -2105,6 +2177,7 @@ namespace server
             {
                 actor->state.teamkills++;
                 addteamkill(actor, target, 1);
+                miaoumod::event_teamkill(miaoumod::event_listeners(), std::make_tuple(actor->clientnum, target->clientnum));
             }
             ts.deadflush = ts.lastdeath + DEATHMILLIS;
             // don't issue respawn yet until DEATHMILLIS has elapsed
@@ -2114,6 +2187,8 @@ namespace server
 
     void suicide(clientinfo *ci)
     {
+        if(miaoumod::event_suicide(miaoumod::event_listeners(), std::make_tuple(ci->clientnum))) return;
+
         servstate &gs = ci->state;
         if(gs.state!=CS_ALIVE) return;
         int fragvalue = smode ? smode->fragvalue(ci, ci) : -1;
@@ -2146,6 +2221,7 @@ namespace server
             default:
                 return;
         }
+        gs.explosivedamage += attacks[atk].damage;
         sendf(-1, 1, "ri4x", N_EXPLODEFX, ci->clientnum, atk, id, ci->ownernum);
         loopv(hits)
         {
@@ -2156,6 +2232,8 @@ namespace server
             bool dup = false;
             loopj(i) if(hits[j].target==h.target) { dup = true; break; }
             if(dup) continue;
+
+            gs.hits += (ci != target ? 1 : 0);
 
             float damage = attacks[atk].damage*(1-h.dist/EXP_DISTSCALE/attacks[atk].exprad);
             if(target==ci) damage /= EXP_SELFDAMDIV;
@@ -2182,6 +2260,10 @@ namespace server
                 int(to.x*DMF), int(to.y*DMF), int(to.z*DMF),
                 ci->ownernum);
         gs.shotdamage += attacks[atk].damage*attacks[atk].rays;
+
+        gs.shots++;
+        int old_hits = gs.hits;
+
         switch(atk)
         {
             case ATK_PULSE_SHOOT: gs.projs.add(id); break;
@@ -2196,12 +2278,19 @@ namespace server
 
                     totalrays += h.rays;
                     if(totalrays>maxrays) continue;
+
+                    gs.hits += (ci != target ? 1 : 0);
+
                     int damage = h.rays*attacks[atk].damage;
                     dodamage(target, ci, damage, atk, h.dir);
                 }
                 break;
             }
         }
+
+        gs.misses += (gs.hits - old_hits == 0);
+
+        miaoumod::event_shot(miaoumod::event_listeners(), std::make_tuple(ci->clientnum, atk, gs.hits - old_hits));
     }
 
     void pickupevent::process(clientinfo *ci)
@@ -2340,6 +2429,8 @@ namespace server
         ci->state.timeplayed += lastmillis - ci->state.lasttimeplayed;
         if(!ci->local && (!ci->privilege || ci->warned)) aiman::removeai(ci);
         sendf(-1, 1, "ri3", N_SPECTATOR, ci->clientnum, 1);
+
+        miaoumod::event_spectator(miaoumod::event_listeners(), std::make_tuple(ci->clientnum, true));
     }
 
     struct crcinfo
@@ -2399,6 +2490,8 @@ namespace server
                 formatstring(msg, "%s has modified map \"%s\"", colorname(ci), smapname);
                 sendf(req, 1, "ris", N_SERVMSG, msg);
                 if(req < 0) ci->warned = true;
+                convert2utf8 utf8map(smapname);
+                miaoumod::event_modmap(miaoumod::event_listeners(), std::make_tuple(ci->clientnum, utf8map.str(), ci->mapcrc));
             }
         }
         if(req < 0 && modifiedmapspectator && (mcrc || modifiedmapspectator > 1)) loopv(clients)
@@ -2432,7 +2525,8 @@ namespace server
 
     void noclients()
     {
-        bannedips.shrink(0);
+        if(!miaoumod::event_clearbans_request(miaoumod::event_listeners(), std::make_tuple()))
+            bannedips.shrink(0);
         aiman::clearai();
     }
 
@@ -2480,10 +2574,17 @@ namespace server
             sendf(-1, 1, "ri2", N_CDIS, n);
             clients.removeobj(ci);
             aiman::removeai(ci);
+
+            miaoumod::event_disconnect(miaoumod::event_listeners(), std::make_tuple(n));
+
             if(!numclients(-1, false, true)) noclients(); // bans clear when server empties
             if(ci->local) checkpausegame();
         }
-        else connects.removeobj(ci);
+        else
+        {
+            connects.removeobj(ci);
+            miaoumod::event_failedconnect(miaoumod::event_listeners(), std::make_tuple(ci->hostname()));
+        }
     }
 
     int reserveclients() { return 3; }
@@ -2519,6 +2620,11 @@ namespace server
     {
         if(ci->local) return DISC_NONE;
         if(!m_mp(gamemode)) return DISC_LOCAL;
+        convert2utf8 utf8name(ci->name);
+        if(miaoumod::event_connecting(miaoumod::event_listeners(), std::make_tuple(ci->clientnum, ci->hostname(), utf8name.str(), pwd)))
+        {
+            return DISC_IPBAN;
+        }
         if(serverpass[0])
         {
             if(!checkpassword(ci, serverpass, pwd)) return DISC_PASSWORD;
@@ -2583,6 +2689,9 @@ namespace server
 
     bool tryauth(clientinfo *ci, const char *user, const char *desc)
     {
+        convert2utf8 utf8user(user);
+        miaoumod::event_authreq(miaoumod::event_listeners(), std::make_tuple(ci->clientnum, utf8user.str(), desc));
+
         ci->cleanauth();
         if(!nextauthreq) nextauthreq = 1;
         ci->authreq = nextauthreq++;
@@ -2621,6 +2730,7 @@ namespace server
         {
             if(!isxdigit(*s)) { *s = '\0'; break; }
         }
+        miaoumod::event_authrep(miaoumod::event_listeners(), std::make_tuple(ci->clientnum, id, val));
         if(desc[0])
         {
             if(ci->authchallenge && checkchallenge(val, ci->authchallenge))
@@ -2681,6 +2791,7 @@ namespace server
         if(!m_edit || len > 4*1024*1024) return;
         clientinfo *ci = getinfo(sender);
         if(ci->state.state==CS_SPECTATOR && !ci->privilege && !ci->local) return;
+        if(miaoumod::event_editpacket(miaoumod::event_listeners(), std::make_tuple(ci->clientnum))) return;
         if(mapdata) DELETEP(mapdata);
         if(!len) return;
         mapdata = opentempfile("mapdata", "w+b");
@@ -2692,6 +2803,7 @@ namespace server
     void sendclipboard(clientinfo *ci)
     {
         if(!ci->lastclipboard || !ci->clipboard) return;
+        if(miaoumod::event_editpacket(miaoumod::event_listeners(), std::make_tuple(ci->clientnum))) return;
         bool flushed = false;
         loopv(clients)
         {
@@ -2732,6 +2844,8 @@ namespace server
         if(m_demo) setupdemoplayback();
 
         if(servermotd[0]) sendf(ci->clientnum, 1, "ris", N_SERVMSG, servermotd);
+
+        miaoumod::event_connect(miaoumod::event_listeners(), std::make_tuple(ci->clientnum));
     }
 
     void parsepacket(int sender, int chan, packetbuf &p)     // has to parse exactly each byte of the packet
@@ -2832,7 +2946,7 @@ namespace server
                     int n = p.get(); n |= p.get()<<8; if(flags&(1<<k)) { n |= p.get()<<16; if(n&0x800000) n |= -1<<24; }
                     pos[k] = n/DMF;
                 }
-                loopk(3) p.get();
+                vec cam = vec(p.get(), p.get(), p.get());// miaoumod
                 int mag = p.get(); if(flags&(1<<3)) mag |= p.get()<<8;
                 int dir = p.get(); dir |= p.get()<<8;
                 vec vel = vec((dir%360)*RAD, (clamp(dir/360, 0, 180)-90)*RAD).mul(mag/DVELF);
@@ -2852,7 +2966,22 @@ namespace server
                     }
                     if(smode && cp->state.state==CS_ALIVE) smode->moved(cp, cp->state.o, cp->gameclip, pos, (flags&0x80)!=0);
                     cp->state.o = pos;
+                    cp->state.cam = cam;
                     cp->gameclip = (flags&0x80)!=0;
+
+                    if(cp->state.state==CS_ALIVE && !cp->maploaded && cp->state.aitype == AI_NONE)
+                    {
+                        cp->lastposupdate = totalmillis - 30;
+                        cp->maploaded = gamemillis;
+                        miaoumod::event_maploaded(miaoumod::event_listeners(), std::make_tuple(cp->clientnum));
+                    }
+
+                    if(ci->maploaded)
+                    {
+                        cp->lag = (std::max(30,cp->lag)*10 + (totalmillis - cp->lastposupdate))/12;
+                        cp->last_lag = totalmillis - cp->lastposupdate;
+                        cp->lastposupdate = totalmillis;
+                    }
                 }
                 break;
             }
@@ -2914,6 +3043,7 @@ namespace server
                     ci->state.projs.reset();
                 }
                 else ci->state.state = ci->state.editstate;
+                miaoumod::event_editmode(miaoumod::event_listeners(), std::make_tuple(ci->clientnum, val));
                 QUEUE_MSG;
                 break;
             }
@@ -2985,6 +3115,7 @@ namespace server
                     putint(cm->messages, N_SPAWN);
                     sendstate(cq->state, cm->messages);
                 });
+                miaoumod::event_spawn(miaoumod::event_listeners(), std::make_tuple(cq->clientnum));
                 break;
             }
 
@@ -3057,11 +3188,18 @@ namespace server
 
             case N_TEXT:
             {
-                QUEUE_AI;
-                QUEUE_MSG;
                 getstring(text, p);
                 filtertext(text, text);
-                QUEUE_STR(text);
+
+                convert2utf8 utf8text(text);
+                if(!miaoumod::event_text(miaoumod::event_listeners(), std::make_tuple(ci->clientnum, utf8text.str())))
+                {
+
+                    QUEUE_AI;
+                    QUEUE_MSG;
+                    QUEUE_STR(text);
+                }
+
                 if(isdedicatedserver() && cq) logoutf("%s: %s", colorname(cq), text);
                 break;
             }
@@ -3070,11 +3208,15 @@ namespace server
             {
                 getstring(text, p);
                 if(!ci || !cq || (ci->state.state==CS_SPECTATOR && !ci->local && !ci->privilege) || !m_teammode || !validteam(cq->team)) break;
-                loopv(clients)
+                convert2utf8 utf8text(text);
+                if(!miaoumod::event_sayteam(miaoumod::event_listeners(), std::make_tuple(ci->clientnum, utf8text.str())))
                 {
-                    clientinfo *t = clients[i];
-                    if(t==cq || t->state.state==CS_SPECTATOR || t->state.aitype != AI_NONE || cq->team != t->team) continue;
-                    sendf(t->clientnum, 1, "riis", N_SAYTEAM, cq->clientnum, text);
+                    loopv(clients)
+                    {
+                        clientinfo *t = clients[i];
+                        if(t==cq || t->state.state==CS_SPECTATOR || t->state.aitype != AI_NONE || cq->team != t->team) continue;
+                        sendf(t->clientnum, 1, "riis", N_SAYTEAM, cq->clientnum, text);
+                    }
                 }
                 if(isdedicatedserver() && cq) logoutf("%s <%s>: %s", colorname(cq), teamnames[cq->team], text);
                 break;
@@ -3082,11 +3224,26 @@ namespace server
 
             case N_SWITCHNAME:
             {
-                QUEUE_MSG;
                 getstring(text, p);
-                filtertext(ci->name, text, false, MAXNAMELEN);
-                if(!ci->name[0]) copystring(ci->name, "unnamed");
-                QUEUE_STR(ci->name);
+                filtertext(text, text, false, MAXNAMELEN);
+                if(!text[0]) copystring(text, "unnamed");
+
+                convert2utf8 newnameutf8(text);
+                string oldname;
+                copystring(oldname, ci->name);
+                convert2utf8 oldnameutf8(oldname);
+
+                if(!miaoumod::event_rename(miaoumod::event_listeners(), std::make_tuple(ci->clientnum, oldnameutf8.str(), newnameutf8.str())))
+                {
+                    copystring(ci->name, text);
+                    QUEUE_MSG;
+                    QUEUE_STR(ci->name);
+                }
+                else
+                {
+                    if (strcmp(ci->name, text))
+                        miaoumod::player_rename(ci->clientnum, oldname, false);
+                }
                 break;
             }
 
@@ -3107,9 +3264,11 @@ namespace server
             case N_SWITCHTEAM:
             {
                 int team = getint(p);
-                if(m_teammode && validteam(team) && ci->team != team && (!smode || smode->canchangeteam(ci, ci->team, team)))
+                if(!miaoumod::event_chteamrequest(miaoumod::event_listeners(), std::make_tuple(ci->clientnum, ci->team, team)) &&
+                    m_teammode && validteam(team) && ci->team != team && (!smode || smode->canchangeteam(ci, ci->team, team)))
                 {
                     if(ci->state.state==CS_ALIVE) suicide(ci);
+                    miaoumod::event_reteam(miaoumod::event_listeners(), std::make_tuple(ci->clientnum, ci->team, team));
                     ci->team = team;
                     aiman::changeteam(ci);
                     sendf(-1, 1, "riiii", N_SETTEAM, sender, ci->team, ci->state.state==CS_SPECTATOR ? -1 : 0);
@@ -3122,7 +3281,11 @@ namespace server
                 getstring(text, p);
                 filtertext(text, text, false);
                 int reqmode = getint(p);
-                vote(text, reqmode, sender);
+                convert2utf8 utf8text(text);
+                if(!miaoumod::event_mapvote(miaoumod::event_listeners(), std::make_tuple(ci->clientnum, utf8text.str(), modename(reqmode, "unknown"))))
+                {
+                    vote(text, reqmode, sender);
+                }
                 break;
             }
 
@@ -3152,6 +3315,7 @@ namespace server
                 int type = getint(p);
                 loopk(5) getint(p);
                 if(!ci || ci->state.state==CS_SPECTATOR) break;
+                if(miaoumod::event_editpacket(miaoumod::event_listeners(), std::make_tuple(ci->clientnum))) return;
                 QUEUE_MSG;
                 bool canspawn = canspawnitem(type);
                 if(i<MAXENTS && (sents.inrange(i) || canspawnitem(type)))
@@ -3178,13 +3342,27 @@ namespace server
                     case ID_FVAR: getfloat(p); break;
                     case ID_SVAR: getstring(text, p);
                 }
+                if(miaoumod::event_editpacket(miaoumod::event_listeners(), std::make_tuple(ci->clientnum))) return;
                 if(ci && ci->state.state!=CS_SPECTATOR) QUEUE_MSG;
                 break;
             }
 
             case N_PING:
-                sendf(sender, 1, "i2", N_PONG, getint(p));
+            {
+                int clientmillis = getint(p);
+
+                if(!ci->maploaded && totalmillis - ci->connectmillis > 2000)
+                {
+                    ci->maploaded = gamemillis;
+                    miaoumod::event_maploaded(miaoumod::event_listeners(), std::make_tuple(ci->clientnum));
+                }
+
+                ci->lastpingupdate = totalmillis;
+                ci->clientmillis = clientmillis;
+
+                sendf(sender, 1, "i2", N_PONG, clientmillis);
                 break;
+            }
 
             case N_CLIENTPING:
             {
@@ -3205,6 +3383,10 @@ namespace server
                 {
                     if((ci->privilege>=PRIV_ADMIN || ci->local) || (mastermask&(1<<mm)))
                     {
+                        if(miaoumod::event_setmastermode_request(miaoumod::event_listeners(), std::make_tuple(ci->clientnum, mastermodename(mastermode), mastermodename(mm))))
+                        {
+                            break;
+                        }
                         mastermode = mm;
                         allowedips.shrink(0);
                         if(mm>=MM_PRIVATE)
@@ -3226,6 +3408,7 @@ namespace server
             {
                 if(ci->privilege || ci->local)
                 {
+                    if(miaoumod::event_clearbans_request(miaoumod::event_listeners(), std::make_tuple())) break;
                     bannedips.shrink(0);
                     sendservmsg("cleared all bans");
                 }
@@ -3261,9 +3444,11 @@ namespace server
                 if(!ci->privilege && !ci->local) break;
                 clientinfo *wi = getinfo(who);
                 if(!m_teammode || !validteam(team) || !wi || !wi->connected || wi->team == team) break;
-                if(!smode || smode->canchangeteam(wi, wi->team, team))
+                if((!smode || smode->canchangeteam(wi, wi->team, team)) &&
+                    !miaoumod::event_chteamrequest(miaoumod::event_listeners(), std::make_tuple(wi->clientnum, wi->team, team)))
                 {
                     if(wi->state.state==CS_ALIVE) suicide(wi);
+                    miaoumod::event_reteam(miaoumod::event_listeners(), std::make_tuple(wi->clientnum, wi->team, team));
                     wi->team = team;
                 }
                 aiman::changeteam(wi);
@@ -3333,6 +3518,7 @@ namespace server
             {
                 int size = getint(p);
                 if(!ci->privilege && !ci->local && ci->state.state==CS_SPECTATOR) break;
+                if(miaoumod::event_editpacket(miaoumod::event_listeners(), std::make_tuple(ci->clientnum))) return;
                 if(size>=0)
                 {
                     smapname[0] = '\0';
@@ -3489,6 +3675,7 @@ namespace server
                 int extra = lilswap(*(const ushort *)p.pad(2));
                 if(p.remaining() < extra) { disconnect_client(sender, DISC_MSGERR); return; }                
                 p.pad(extra); 
+                if(miaoumod::event_editpacket(miaoumod::event_listeners(), std::make_tuple(ci->clientnum))) return;
                 if(ci && ci->state.state!=CS_SPECTATOR) QUEUE_MSG;
                 break;
             }
@@ -3514,8 +3701,38 @@ namespace server
             }
  
             case N_SERVCMD:
+            {
                 getstring(text, p);
+                convert2utf8 utf8command(text);
+                miaoumod::event_servcmd(miaoumod::event_listeners(), std::make_tuple(ci->clientnum, utf8command.str()));
                 break;
+            }
+
+            case N_CONNECT:
+            {
+                loopi(2) getstring(text, p);
+                getint(p);
+                break;
+            }
+
+            case N_REMIP:
+            case N_EDITF:
+            case N_EDITM:
+            case N_FLIP:
+            case N_ROTATE:
+            case N_DELCUBE:
+            {
+                int size = server::msgsizelookup(type);
+                if(size<=0) { disconnect_client(sender, DISC_MSGERR); return; }
+                loopi(size-1) getint(p);
+                if(miaoumod::event_editpacket(miaoumod::event_listeners(), std::make_tuple(ci->clientnum))) return;
+                if(ci) switch(msgfilter[type])
+                {
+                    case 2: case 3: if(ci->state.state != CS_SPECTATOR) QUEUE_MSG; break;
+                    default: if(cq && (ci != cq || ci->state.state!=CS_SPECTATOR)) { QUEUE_AI; QUEUE_MSG; } break;
+                }
+                break;
+            }
 
             #define PARSEMESSAGES 1
             #include "ctf.h"
@@ -3582,3 +3799,4 @@ namespace server
     #include "aiman.h"
 }
 
+#include "server_functions.cpp"

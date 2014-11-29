@@ -2,6 +2,7 @@
 // runs dedicated or as client coroutine
 
 #include "engine.h"
+#include "miaoumod/miaoumod.hpp"
 
 #define LOGSTRLEN 512
 
@@ -648,6 +649,9 @@ void serverslice(bool dedicated, uint timeout)   // main server update, called f
         totalmillis = millis;
         updatetime();
     }
+
+    uv_run(uv_default_loop(), UV_RUN_NOWAIT);
+
     server::serverupdate();
 
     flushmasteroutput();
@@ -667,8 +671,11 @@ void serverslice(bool dedicated, uint timeout)   // main server update, called f
     bool serviced = false;
     while(!serviced)
     {
+        uv_run(uv_default_loop(), UV_RUN_NOWAIT);
         if(enet_host_check_events(serverhost, &event) <= 0)
         {
+            int uvTimeout = uv_backend_timeout(uv_default_loop());
+            if(uvTimeout != -1) timeout = min(timeout, (uint)uvTimeout);
             if(enet_host_service(serverhost, &event, timeout) <= 0) break;
             serviced = true;
         }
@@ -1090,6 +1097,8 @@ void initserver(bool listen, bool dedicated)
     if(listen) setuplistenserver(dedicated);
 
     server::serverinit();
+
+    miaoumod::init();
 
     if(listen)
     {
