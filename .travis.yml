@@ -1,0 +1,13 @@
+language: cpp
+before_install:
+  - sudo apt-get -y install build-essential zlib1g-dev libenet-dev libluajit-5.1-dev
+
+script:
+  - (mkdir cmakebuild && cd cmakebuild && cmake $CMAKE_FLAGS .. && make -j5 && cd .. && rm -rf cmakebuild)
+
+compiler:
+  - clang
+  - gcc
+
+env:
+  - CMAKE_FLAGS=
