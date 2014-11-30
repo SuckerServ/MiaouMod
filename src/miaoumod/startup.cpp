@@ -23,7 +23,7 @@ void shutdown(int val)
     exit(0);
 }
 
-
+#ifndef _WIN32
 void register_signals(lua_State *L)
 {
     struct sigaction terminate_action;
@@ -33,6 +33,7 @@ void register_signals(lua_State *L)
     sigaction(SIGINT, &terminate_action, NULL);
     sigaction(SIGTERM, &terminate_action, NULL);
 }
+#endif
 
 /**
     Initializes everything in miaoumod. This function is called at server startup and server reload.
@@ -45,7 +46,9 @@ void init()
 
     lua_State * L = miaoumod::lua::init();
 
+#ifndef _WIN32
     register_signals(L);
+#endif
 
     if(luaL_loadfile(L, INIT_SCRIPT) == 0)
     {

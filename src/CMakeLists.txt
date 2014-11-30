@@ -53,6 +53,19 @@ if(NOT MMDB_FOUND)
     SET_SOURCE_FILES_PROPERTIES(libmaxminddb/src/maxminddb.c PROPERTIES COMPILE_FLAGS -std=c99)
     SET_SOURCE_FILES_PROPERTIES(libmaxminddb/src/maxminddb.c PROPERTIES COMPILE_DEFINITIONS PACKAGE_VERSION="1.0.1")
 
+    CHECK_TYPE_SIZE("unsigned __int128" UINT128)
+
+    if(NOT HAVE_UINT128)
+        add_definitions(-DMMDB_UINT128_IS_BYTE_ARRAY=1)
+    endif()
+
+    CHECK_TYPE_SIZE("unsigned int __attribute__((mode(TI)))" UINT128_USING_MODE)
+
+    if(HAVE_UINT128_USING_MODE)
+        add_definitions(-DMMDB_UINT128_USING_MODE=1)
+    endif()
+
+
     configure_file(
         ${CMAKE_CURRENT_SOURCE_DIR}/libmaxminddb/include/maxminddb_config.h.in
         ${CMAKE_CURRENT_BINARY_DIR}/maxminddb/maxminddb_config.h
@@ -60,9 +73,14 @@ if(NOT MMDB_FOUND)
 
     add_library(${MMDB_LIBRARY} SHARED ${MMDB_SOURCES})
 
+    if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
+        target_link_libraries(${MMDB_LIBRARY} ws2_32)
+    endif()
+
     install(TARGETS
         ${MMDB_LIBRARY}
-        LIBRARY DESTINATION ${INSTALL_LIBRARY_DIR})
+        LIBRARY DESTINATION ${INSTALL_LIBRARY_DIR}
+        RUNTIME DESTINATION ${INSTALL_RUNTIME_DIR})
 
 endif()
 
@@ -164,12 +182,12 @@ set(TESSTOOLS_SOURCES
 
 add_library(tesstools STATIC ${TESSTOOLS_SOURCES})
 
-if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin" AND NOT ${CMAKE_SYSTEM_NAME} MATCHES "Windows")
     target_link_libraries(tesstools -lrt)
-else(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+elseif(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     find_library(coreServices CoreServices)
     target_link_libraries(tesstools ${coreServices})
-endif(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+endif()
 
 target_link_libraries(tesstools -lz ${ENET_LIBRARY})
 
@@ -182,7 +200,6 @@ set(LUA_MODULES_SOURCES
     miaoumod/utils/miaoumod.cpp
     miaoumod/lua/event.cpp
     miaoumod/lua/push_function.cpp
-    miaoumod/lua/library_extensions.cpp
     miaoumod/lua/pcall.cpp
     miaoumod/lua/error_handler.cpp
     miaoumod/lua/push.cpp
@@ -190,8 +207,16 @@ set(LUA_MODULES_SOURCES
     miaoumod/lua/modules/module.cpp
     miaoumod/lua/modules/crypto.cpp
     miaoumod/lua/modules/mmdb.cpp
-    miaoumod/lua/modules/filesystem.cpp
 )
+
+if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Windows")
+    set(LUA_MODULES_SOURCES
+        ${LUA_MODULES_SOURCES}
+        miaoumod/lua/library_extensions.cpp
+        miaoumod/lua/modules/filesystem.cpp
+    )
+endif()
+
 
 add_library(lua_modules STATIC ${LUA_MODULES_SOURCES})
 
@@ -201,6 +226,10 @@ target_link_libraries(lua_modules
     ${MMDB_LIBRARY}
     ${OPENSSL_LIBRARIES})
 
+if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
+    target_link_libraries(lua_modules
+        -lcrypto -lssl)
+endif()
 
 set(GAME_SERVER_SOURCES
     miaoumod/utils/files.cpp
@@ -212,11 +241,19 @@ set(GAME_SERVER_SOURCES
     game/server.cpp
 )
 
+if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
+    set(CMAKE_RC_COMPILE_OBJECT "${CMAKE_RC_COMPILER} -O coff -I${CMAKE_CURRENT_SOURCE_DIR} <SOURCE> <OBJECT>")
+    set(GAME_SERVER_SOURCES
+        ${GAME_SERVER_SOURCES}
+        win32/mingw.rc
+    )
+endif()
+
 add_executable(tess_server ${GAME_SERVER_SOURCES})
 
-if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin" AND NOT ${CMAKE_SYSTEM_NAME} MATCHES "Windows")
     target_link_libraries(tess_server -lrt)
-endif(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+endif()
 
 target_link_libraries(tess_server 
     tesstools
@@ -227,13 +264,15 @@ target_link_libraries(tess_server
 add_executable(keygen miaoumod/standalone/keygen.cpp)
 target_link_libraries(keygen tesstools)
 
-
+if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Windows")
 add_executable(monitor miaoumod/standalone/monitor.cpp miaoumod/lib/program_arguments.cpp)
-
+    install(TARGETS
+        monitor
+        RUNTIME DESTINATION ${INSTALL_RUNTIME_DIR})
+endif()
 
 install(TARGETS 
     tess_server
-    monitor
     RUNTIME DESTINATION ${INSTALL_RUNTIME_DIR} 
     LIBRARY DESTINATION ${INSTALL_LIBRARY_DIR} 
     ARCHIVE DESTINATION ${INSTALL_ARCHIVE_DIR})

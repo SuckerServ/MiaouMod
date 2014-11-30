@@ -2,6 +2,8 @@ project(MiaouMod)
 
 cmake_minimum_required(VERSION 2.8.0)
 
+include(CheckTypeSize)
+
 set(INSTALL_DIR ${PROJECT_SOURCE_DIR})
 set(INSTALL_LIBRARY_DIR ${INSTALL_DIR}/lib)
 set(INSTALL_ARCHIVE_DIR ${INSTALL_DIR}/lib)
@@ -15,4 +17,3 @@ set(CMAKE_MODULE_PATH
 add_definitions(-Wall)
 
 add_subdirectory(src)
-

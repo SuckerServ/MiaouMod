@@ -47,6 +47,9 @@ if [ $THREADS -eq 1 ]; then
   STRTHREADS="thread"
 fi
 
+if [ $CROSS == "mingw64" ]; then
+  COMPILEFLAGS="$COMPILEFLAGS -DCMAKE_TOOLCHAIN_FILE=../src/win32/Toolchain-mingw64.cmake"
+fi
 # Now compile the source code and install it in server's directory
 echo "$STRCOMPILE $PROJECT using $(tput bold ; tput setaf 4)$THREADS$(tput sgr0) $STRTHREADS ($BUILDTYPE build)"
 cmake $COMPILEFLAGS ..

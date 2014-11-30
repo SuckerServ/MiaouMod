@@ -37,7 +37,9 @@ static void load_modules(lua_State * L)
 {
     lua::module::open_crypto(L);
     lua::module::open_mmdb(L);
+#ifndef _WIN32
     lua::module::open_filesystem(L);
+#endif
 }
 
 lua_State * init()
