@@ -43,9 +43,8 @@ if(NOT MMDB_FOUND)
         CACHE INTERNAL "mmdb library")
 
     set(MMDB_INCLUDE_DIRS
-        libmaxminddb/include
-        ${CMAKE_CURRENT_BINARY_DIR}/maxminddb
-        CACHE INTERNAL "mmdb include directory")
+        ${CMAKE_CURRENT_SOURCE_DIR}/libmaxminddb/include
+        ${CMAKE_CURRENT_BINARY_DIR}/maxminddb)
 
     set(MMDB_SOURCES
         libmaxminddb/src/maxminddb.c
@@ -54,13 +53,9 @@ if(NOT MMDB_FOUND)
     SET_SOURCE_FILES_PROPERTIES(libmaxminddb/src/maxminddb.c PROPERTIES COMPILE_FLAGS -std=c99)
     SET_SOURCE_FILES_PROPERTIES(libmaxminddb/src/maxminddb.c PROPERTIES COMPILE_DEFINITIONS PACKAGE_VERSION="1.0.1")
 
-    file(COPY
-        libmaxminddb/include/maxminddb_config.h.in
-        DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/maxminddb
-    )
-    file(RENAME
-       ${CMAKE_CURRENT_BINARY_DIR}/maxminddb/maxminddb_config.h.in
-       ${CMAKE_CURRENT_BINARY_DIR}/maxminddbmaxminddb_config.h
+    configure_file(
+        ${CMAKE_CURRENT_SOURCE_DIR}/libmaxminddb/include/maxminddb_config.h.in
+        ${CMAKE_CURRENT_BINARY_DIR}/maxminddb/maxminddb_config.h
     )
 
     add_library(${MMDB_LIBRARY} SHARED ${MMDB_SOURCES})
