@@ -11,6 +11,7 @@ before_install:
   - if [ "$CXX" = "clang++" ]; then sudo apt-get install -qq libstdc++-4.9-dev; fi
   - if [ "$CXX" = "g++" ]; then sudo apt-get install -qq gcc-4.9 g++-4.9; fi
   - if [ "$CXX" = "g++" ]; then export CXX="g++-4.9" CC="gcc-4.9"; fi
+  - sudo cp -r /opt/mingw64/* /usr/i686-w64-mingw32/
   - ./build_miaoumod_mingw.sh  
 script:
   - CROSS="mingw64" ./compile.sh
