@@ -9,7 +9,7 @@
 
 extern "C"
 {
-    #include "luvit/uv/uv.h"
+    #include "uv.h"
     #include "luvit/luvit_init.h"
 }
 

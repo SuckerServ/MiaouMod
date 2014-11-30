@@ -650,7 +650,8 @@ void serverslice(bool dedicated, uint timeout)   // main server update, called f
         updatetime();
     }
 
-    uv_run(uv_default_loop(), UV_RUN_NOWAIT);
+    uv_loop_t *loop = uv_default_loop();
+    uv_run(loop, UV_RUN_NOWAIT);
 
     server::serverupdate();
 
@@ -671,10 +672,10 @@ void serverslice(bool dedicated, uint timeout)   // main server update, called f
     bool serviced = false;
     while(!serviced)
     {
-        uv_run(uv_default_loop(), UV_RUN_NOWAIT);
+        uv_run(loop, UV_RUN_NOWAIT);
         if(enet_host_check_events(serverhost, &event) <= 0)
         {
-            int uvTimeout = uv_backend_timeout(uv_default_loop());
+            int uvTimeout = uv_loop_alive(loop) ? uv_backend_timeout(loop) : -1;
             if(uvTimeout != -1) timeout = min(timeout, (uint)uvTimeout);
             if(enet_host_service(serverhost, &event, timeout) <= 0) break;
             serviced = true;
@@ -1025,7 +1026,7 @@ bool isdedicatedserver() { return dedicatedserver; }
 void rundedicatedserver()
 {
     dedicatedserver = true;
-    logoutf("dedicated server started, waiting for clients...");
+    logoutf("dedicated server started, waiting for clients...\n*READY*\n\n");
 #ifdef WIN32
     SetPriorityClass(GetCurrentProcess(), HIGH_PRIORITY_CLASS);
     for(;;)

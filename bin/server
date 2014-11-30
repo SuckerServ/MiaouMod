@@ -28,9 +28,9 @@ fi
 
 cd $d_main
 
-if [ ! -d bin ] || [ ! -d log ] || [ ! -d conf ] || [ ! -d script ]
+if [ ! -d bin ] || [ ! -d log ] || [ ! -d config ] || [ ! -d script ]
 then
-    echo "Incomplete Installation! bin/, log/, conf/ or script/ are missing."
+    echo "Incomplete Installation! bin/, log/, config/ or script/ are missing."
     exit 1
 fi
 

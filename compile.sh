@@ -41,7 +41,7 @@ fi
 if [ ! -d $COMPILEDIR ]; then
   mkdir $COMPILEDIR
 fi
-cd $COMPILEDIR
+pushd $COMPILEDIR
 STRTHREADS="threads"
 if [ $THREADS -eq 1 ]; then
   STRTHREADS="thread"
@@ -58,9 +58,12 @@ else
   make -j$THREADS install/strip
   [[ "$?" != "0" ]] && echo "$(tput bold ; tput setaf 1)MAKE INSTALL/STRIP FAILED$(tput sgr0)" && exit 1
 fi
+popd
 
 # Create empty log directory
-mkdir log
+if [ ! -d "log" ]; then
+  mkdir log
+fi
+
 # Give right execution permissions to executables
-cd ../bin
-for i in tess_server server monitor env.sh utils/newserver.sh utils/keygen; do chmod +x $i; done
+find bin -exec chmod +x {} \;
