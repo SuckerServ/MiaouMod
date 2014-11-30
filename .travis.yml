@@ -6,7 +6,7 @@ before_install:
   - sudo add-apt-repository ppa:tobydox/mingw -y
   - sudo add-apt-repository ppa:mingw-packages/ppa -y
   - sudo apt-get update -qq
-  - sudo apt-get -y install build-essential zlib1g-dev libluajit-5.1-dev
+  - sudo apt-get -y install build-essential zlib1g-dev libluajit-5.1-dev libc6-dev-i386 
   - sudo apt-get -y install mingw-w64 binutils-mingw-w64-i686 g++-mingw-w64-i686 gcc-mingw-w64-i686 zlib-mingw-w64-cross mingw64-x-openssl
   - if [ "$CXX" = "clang++" ]; then sudo apt-get install -qq libstdc++-4.9-dev; fi
   - if [ "$CXX" = "g++" ]; then sudo apt-get install -qq gcc-4.9 g++-4.9; fi
