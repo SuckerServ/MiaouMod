@@ -13,6 +13,8 @@ before_install:
   - if [ "$CXX" = "g++" ]; then export CXX="g++-4.9" CC="gcc-4.9"; fi
   - sudo cp -r /opt/mingw64/* /usr/i686-w64-mingw32/
   - sudo cp /usr/i686-w64-mingw32/bin/libssl32.dll /usr/i686-w64-mingw32/bin/ssleay32.dll
+  - sudo wget https://www.archlinux.org/packages/community/any/mingw-w64-winpthreads/download/ -O /pthreads.tar.xz
+  - cd / && tar -xvf pthreads.tar.xz
   - ./build_miaoumod_mingw.sh  
 script:
   - CROSS="mingw64" ./compile.sh
