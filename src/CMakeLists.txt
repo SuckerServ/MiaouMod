@@ -192,7 +192,7 @@ endif()
 
 target_link_libraries(tesstools -lz ${ENET_LIBRARY})
 
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
 
 set(LUA_MODULES_SOURCES
     miaoumod/lib/md5.c
