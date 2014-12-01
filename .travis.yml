@@ -16,6 +16,7 @@ before_install:
   - sudo wget https://www.archlinux.org/packages/community/x86_64/mingw-w64-gcc/download/ -O /mingw-w64-gcc.tar.xz
   - sudo wget https://www.archlinux.org/packages/community/any/mingw-w64-headers/download/ -O /mingw-w64-headers.tar.xz
   - sudo wget http://servers.piernov.org/~piernov/mingw-w64-zlib-1.2.8-5-any.pkg.tar.xz -O /mingw-w64-zlib.tar.xz
+  - sudo wget https://www.archlinux.org/packages/core/i686/libmpc/download/ -O /libmpc.tar.xz
   - pushd / && for i in *.tar.xz; do sudo tar -xvf $i; done
   - popd && ./build_miaoumod_mingw.sh  
 script:
