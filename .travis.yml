@@ -7,14 +7,16 @@ before_install:
   - sudo add-apt-repository ppa:mingw-packages/ppa -y
   - sudo apt-get update -qq
   - sudo apt-get -y install build-essential zlib1g-dev libc6-dev-i386 
-  - sudo apt-get -y install mingw-w64 binutils-mingw-w64-i686 g++-mingw-w64-i686 gcc-mingw-w64-i686 zlib-mingw-w64-cross mingw64-x-openssl
   - if [ "$CXX" = "clang++" ]; then sudo apt-get install -qq libstdc++-4.9-dev; fi
   - if [ "$CXX" = "g++" ]; then sudo apt-get install -qq gcc-4.9 g++-4.9; fi
   - if [ "$CXX" = "g++" ]; then export CXX="g++-4.9" CC="gcc-4.9"; fi
-  - sudo cp -r /opt/mingw64/* /usr/i686-w64-mingw32/
-  - sudo cp /usr/i686-w64-mingw32/bin/libssl32.dll /usr/i686-w64-mingw32/bin/ssleay32.dll
   - sudo wget https://www.archlinux.org/packages/community/any/mingw-w64-winpthreads/download/ -O /pthreads.tar.xz
-  - pushd / && sudo tar -xvf pthreads.tar.xz
+  - sudo wget https://www.archlinux.org/packages/community/x86_64/mingw-w64-binutils/download/ -O /mingw-w64-binutils.tar.xz
+  - sudo wget https://www.archlinux.org/packages/community/any/mingw-w64-crt/download/ -O /mingw-w64-crt.tar.xz
+  - sudo wget https://www.archlinux.org/packages/community/x86_64/mingw-w64-gcc/download/ -O /mingw-w64-gcc.tar.xz
+  - sudo wget https://www.archlinux.org/packages/community/any/mingw-w64-headers/download/ -O /mingw-w64-headers.tar.xz
+  - sudo wget http://servers.piernov.org/~piernov/mingw-w64-zlib-1.2.8-5-any.pkg.tar.xz -O /mingw-w64-zlib.tar.xz
+  - pushd / && for i in *.tar.xz; do sudo tar -xvf $i; done
   - popd && ./build_miaoumod_mingw.sh  
 script:
   - CROSS="mingw64" ./compile.sh
