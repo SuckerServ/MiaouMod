@@ -50,6 +50,10 @@ fi
 if [ $CROSS == "mingw64" ]; then
   COMPILEFLAGS="$COMPILEFLAGS -DCMAKE_TOOLCHAIN_FILE=../src/win32/Toolchain-mingw64.cmake"
 fi
+if [ $CROSS == "mingw64-clang" ]; then
+  COMPILEFLAGS="$COMPILEFLAGS -DCMAKE_TOOLCHAIN_FILE=../src/win32/Toolchain-mingw64-clang.cmake"
+fi
+
 # Now compile the source code and install it in server's directory
 echo "$STRCOMPILE $PROJECT using $(tput bold ; tput setaf 4)$THREADS$(tput sgr0) $STRTHREADS ($BUILDTYPE build)"
 cmake $COMPILEFLAGS ..
