@@ -6,5 +6,5 @@ sudo cp libluajit.a /usr/i686-w64-mingw32/lib/libluajit-5.1.a
 
 sudo mkdir /usr/i686-w64-mingw32/include/luajit-2.0/
 for i in lauxlib.h  luaconf.h  lua.h  lua.hpp  luajit.h  lualib.h; do
-	sudo cp ${i} /usr/i686-w64-mingw32/include/
+	sudo cp ${i} /usr/i686-w64-mingw32/include/luajit-2.0/
 done
