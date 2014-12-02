@@ -21,6 +21,9 @@ before_install:
   - sudo wget https://www.archlinux.org/packages/core/any/autoconf/download/ -O /autoconf.tar.xz
   - pushd / && for i in *.tar.xz; do sudo tar -xf $i; done
   - popd
+  - sudo ln -sf /usr/bin/i686-w64-mingw32* /usr/local/clang-3.4/bin/
+  - sudo ln -sf /usr/bin/x86_64-w64-mingw32* /usr/local/clang-3.4/bin/
+  - sudo ln -sf /usr/bin/i586-mingw32msvc* /usr/local/clang-3.4/bin/
   - if [ "$CXX" = "clang++" ]; then ./build_wclang.sh; fi
   - ./build_miaoumod_mingw.sh  
 script:
