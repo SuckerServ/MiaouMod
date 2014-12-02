@@ -23,7 +23,7 @@ before_install:
   - if [ "$CXX" = "clang++" ]; then ./build_wclang.sh; fi
   - ./build_miaoumod_mingw.sh  
 script:
-  - if [ "$CXX" = "clang++" ]; CROSS="mingw64-clang" ./compile.sh; else  CROSS="mingw64" ./compile.sh; fi
+  - if [ "$CXX" = "clang++" ]; then CROSS="mingw64-clang" ./compile.sh; else  CROSS="mingw64" ./compile.sh; fi
 
 compiler:
   - clang
