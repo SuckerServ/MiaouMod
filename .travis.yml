@@ -20,7 +20,7 @@ before_install:
   - sudo wget https://www.archlinux.org/packages/core/x86_64/libmpc/download/ -O /libmpc.tar.xz
   - pushd / && for i in *.tar.xz; do sudo tar -xf $i; done
   - popd
-  - if [ "$CXX" = "clang++" ]; then build_wclang.sh; fi
+  - if [ "$CXX" = "clang++" ]; then ./build_wclang.sh; fi
   - ./build_miaoumod_mingw.sh  
 script:
   - if [ "$CXX" = "clang++" ]; CROSS="mingw64-clang" ./compile.sh; else  CROSS="mingw64" ./compile.sh; fi
