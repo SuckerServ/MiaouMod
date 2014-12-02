@@ -18,6 +18,7 @@ before_install:
   - sudo wget http://servers.piernov.org/~piernov/mingw-w64-zlib-1.2.8-5-any.pkg.tar.xz -O /mingw-w64-zlib.tar.xz
   - sudo wget http://servers.piernov.org/~piernov/mingw-w64-openssl-1.0.1.j-2-any.pkg.tar.xz -O /mingw-w64-openssl.tar.xz
   - sudo wget https://www.archlinux.org/packages/core/x86_64/libmpc/download/ -O /libmpc.tar.xz
+  - sudo wget https://www.archlinux.org/packages/core/any/autoconf/download/ -O /autoconf.tar.xz
   - pushd / && for i in *.tar.xz; do sudo tar -xf $i; done
   - popd
   - if [ "$CXX" = "clang++" ]; then ./build_wclang.sh; fi
