@@ -5,4 +5,4 @@ cd wclang
 ./bootstrap.sh
 ./configure --prefix=/usr
 make
-make install
+sudo make install
