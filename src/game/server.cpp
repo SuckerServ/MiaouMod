@@ -3196,7 +3196,7 @@ namespace server
                 {
 
                     QUEUE_AI;
-                    QUEUE_MSG;
+                    QUEUE_INT(N_TEXT);
                     QUEUE_STR(text);
                 }
 
@@ -3236,7 +3236,7 @@ namespace server
                 if(!miaoumod::event_rename(miaoumod::event_listeners(), std::make_tuple(ci->clientnum, oldnameutf8.str(), newnameutf8.str())))
                 {
                     copystring(ci->name, text);
-                    QUEUE_MSG;
+                    QUEUE_INT(N_SWITCHNAME);
                     QUEUE_STR(ci->name);
                 }
                 else
