@@ -12,4 +12,4 @@
 	url = https://github.com/mkottman/luacrypto.git
 [submodule "src/libmaxminddb"]
 	path = src/libmaxminddb
-	url = https://github.com/SuckerServ/libmaxminddb.git
+	url = https://github.com/maxmind/libmaxminddb.git
