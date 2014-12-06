@@ -2695,7 +2695,7 @@ namespace server
         ci->cleanauth();
         if(!nextauthreq) nextauthreq = 1;
         ci->authreq = nextauthreq++;
-        filtertext(ci->authname, user, false, 100);
+        filtertext(ci->authname, user, false, false, 100);
         copystring(ci->authdesc, desc);
         if(ci->authdesc[0])
         {
@@ -2863,7 +2863,7 @@ namespace server
                 case N_CONNECT:
                 {
                     getstring(text, p);
-                    filtertext(text, text, false, MAXNAMELEN);
+                    filtertext(text, text, false, false, MAXNAMELEN);
                     if(!text[0]) copystring(text, "unnamed");
                     copystring(ci->name, text, MAXNAMELEN+1);
                     ci->playermodel = getint(p);
@@ -3189,7 +3189,7 @@ namespace server
             case N_TEXT:
             {
                 getstring(text, p);
-                filtertext(text, text);
+                filtertext(text, text, true, true);
 
                 convert2utf8 utf8text(text);
                 if(!miaoumod::event_text(miaoumod::event_listeners(), std::make_tuple(ci->clientnum, utf8text.str())))
@@ -3208,6 +3208,7 @@ namespace server
             {
                 getstring(text, p);
                 if(!ci || !cq || (ci->state.state==CS_SPECTATOR && !ci->local && !ci->privilege) || !m_teammode || !validteam(cq->team)) break;
+                filtertext(text, text, true, true);
                 convert2utf8 utf8text(text);
                 if(!miaoumod::event_sayteam(miaoumod::event_listeners(), std::make_tuple(ci->clientnum, utf8text.str())))
                 {
@@ -3225,7 +3226,7 @@ namespace server
             case N_SWITCHNAME:
             {
                 getstring(text, p);
-                filtertext(text, text, false, MAXNAMELEN);
+                filtertext(text, text, false, false, MAXNAMELEN);
                 if(!text[0]) copystring(text, "unnamed");
 
                 convert2utf8 newnameutf8(text);
