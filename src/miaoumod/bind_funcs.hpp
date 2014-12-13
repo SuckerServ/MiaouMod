@@ -3,6 +3,7 @@
 
 #include "lua.hpp"
 #include "cube.h"
+#include "events.hpp"
 
 /* Forward declaration of Lua value io functions */
 //#include "lua/push_function_fwd.hpp"
@@ -56,7 +57,7 @@ static int variable_accessor(lua_State * L)
     {
         if(READ_ONLY) luaL_error(L, "variable is read-only");
         *var = lua::to(L, 1, lua::return_tag<T>());
-//        event_varchanged(event_listeners(), std::make_tuple(lua_tostring(L, lua_upvalueindex(2))));
+        miaoumod::event_varchanged(miaoumod::event_listeners(), std::make_tuple(lua_tostring(L, lua_upvalueindex(2))));
         return 0;
     }
     else // Get variable
@@ -75,8 +76,8 @@ static int string_accessor(lua_State * L)
     {
         if(READ_ONLY) luaL_error(L, "variable is read-only");
         convert2cube varcubeenc(lua_tostring(L, 1));
-        copystring(var, varcubeenc.str());
-//        event_varchanged(event_listeners(), std::make_tuple(lua_tostring(L, lua_upvalueindex(2))));
+        copystring(var, varcubeenc.str(), MAXSTRLEN);
+        miaoumod::event_varchanged(miaoumod::event_listeners(), std::make_tuple(lua_tostring(L, lua_upvalueindex(2))));
         return 0;
     }
     else // Get variable
@@ -154,7 +155,7 @@ static int property_accessor(lua_State * L)
     {
         if(!set) luaL_error(L, "cannot set value");
         set(lua::to(L, 1, lua::return_tag<T>()));
-//        event_varchanged(event_listeners(), std::make_tuple(lua_tostring(L, lua_upvalueindex(3))));
+        miaoumod::event_varchanged(miaoumod::event_listeners(), std::make_tuple(lua_tostring(L, lua_upvalueindex(3))));
         return 0;
     }
     else
