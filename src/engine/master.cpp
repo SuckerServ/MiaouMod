@@ -1,3 +1,11 @@
+#ifdef WIN32
+#define FD_SETSIZE 4096
+#else
+#include <sys/types.h>
+#undef __FD_SETSIZE
+#define __FD_SETSIZE 4096
+#endif
+
 #include "cube.h"
 #include <signal.h>
 #include <enet/time.h>
@@ -8,12 +16,13 @@
 #define AUTH_TIME (30*1000)
 #define AUTH_LIMIT 100
 #define AUTH_THROTTLE 1000
-#define CLIENT_LIMIT 8192
+#define CLIENT_LIMIT 4096
 #define DUP_LIMIT 16
 #define PING_TIME 3000
 #define PING_RETRY 5
 #define KEEPALIVE_TIME (65*60*1000)
-#define SERVER_LIMIT (10*1024)
+#define SERVER_LIMIT 4096
+#define SERVER_DUP_LIMIT 10
 
 FILE *logfile = NULL;
 
@@ -291,15 +300,23 @@ void gengbanlist()
 void addgameserver(client &c)
 {
     if(gameservers.length() >= SERVER_LIMIT) return;
+    int dups = 0;
     loopv(gameservers)
     {
         gameserver &s = *gameservers[i];
-        if(s.address.host == c.address.host && s.port == c.servport)
+        if(s.address.host != c.address.host) continue; 
+        ++dups; 
+        if(s.port == c.servport)
         {
             s.lastping = 0;
             s.numpings = 0;
             return;
         }
+    }
+    if(dups >= SERVER_DUP_LIMIT)
+    {
+        outputf(c, "failreg too many servers on ip\n");
+        return;
     }
     string hostname;
     if(enet_address_get_host_ip(&c.address, hostname, sizeof(hostname)) < 0)
