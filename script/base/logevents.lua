@@ -33,3 +33,12 @@ end)
 server.event_handler("shutdown", function(id)
 	print("[EVENT]: shutdown", id)
 end)
+
+server.event_handler("request_auth_challenge", function(cn, name, desc)
+	print("[EVENT]: authreq", cn, name, desc)
+end)
+
+server.event_handler("auth_challenge_response", function(cn, name, desc)
+        print("[EVENT]: authrep", cn, name, desc)
+end)
+

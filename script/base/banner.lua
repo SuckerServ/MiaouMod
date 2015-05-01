@@ -75,7 +75,6 @@ local function sendServerBanner(cn)
         -- cancel if not the same player from 1 second ago
         if sid ~= server.player_sessionid(cn) then return end
         
-        server.player_msg(cn, "miaou")
         server.player_msg(cn, "connect_info")
 
         server.player_vars(cn).shown_banner = true
