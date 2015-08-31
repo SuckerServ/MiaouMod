@@ -838,8 +838,6 @@ namespace UI
             if(children.empty()) return;
 
             loopwindows(w, w->draw());
-
-            gle::disable();
         }
 
         float abovehud()
@@ -2058,10 +2056,7 @@ namespace UI
             changedraw(CHANGE_SHADER | CHANGE_COLOR);
 
             float k = drawscale();
-            pushhudmatrix();
-            hudmatrix.translate(sx, sy, 0);
-            hudmatrix.scale(k, k, 1);
-            flushhudmatrix();
+            pushhudtranslate(sx, sy, k);
             renderfullconsole(w/k, h/k);
             pophudmatrix();
         }
@@ -2632,10 +2627,7 @@ namespace UI
             edit->rendered = true;
 
             float k = drawscale();
-            pushhudmatrix();
-            hudmatrix.translate(sx, sy, 0);
-            hudmatrix.scale(k, k, 1);
-            flushhudmatrix();
+            pushhudtranslate(sx, sy, k);
 
             edit->draw(FONTW/2, 0, 0xFFFFFF, isfocus());
 
@@ -2849,7 +2841,6 @@ namespace UI
         void startdraw()
         {
             glDisable(GL_BLEND);
-            gle::disable();
 
             if(clipstack.length()) glDisable(GL_SCISSOR_TEST);
         }

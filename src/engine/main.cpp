@@ -19,7 +19,6 @@ void cleanup()
     extern void clear_models();  clear_models();
     extern void clear_sound();   clear_sound();
     closelogfile();
-    ovr::destroy();
     #ifdef __APPLE__
         if(screen) SDL_SetWindowFullscreen(screen, 0);
     #endif
@@ -191,10 +190,7 @@ void renderbackgroundview(int w, int h, const char *caption, Texture *mapshot, c
         int tw = text_width(caption);
         float tsz = 0.04f*min(w, h)/FONTH,
               tx = 0.5f*(w - tw*tsz), ty = h - 0.075f*1.5f*min(w, h) - FONTH*tsz;
-        pushhudmatrix();
-        hudmatrix.translate(tx, ty, 0);
-        hudmatrix.scale(tsz, tsz, 1);
-        flushhudmatrix();
+        pushhudtranslate(tx, ty, tsz);
         draw_text(caption, 0, 0);
         pophudmatrix();
     }
@@ -221,28 +217,20 @@ void renderbackgroundview(int w, int h, const char *caption, Texture *mapshot, c
         if(mapname)
         {
             float tw = text_widthf(mapname), tsz = sz/(8*FONTH), tx = max(0.5f*(mw*msz - tw*tsz), 0.0f);
-            pushhudmatrix();
-            hudmatrix.translate(x+mx+tx, y, 0);
-            hudmatrix.scale(tsz, tsz, 1);
-            flushhudmatrix();
+            pushhudtranslate(x+mx+tx, y, tsz);
             draw_text(mapname, 0, 0);
             pophudmatrix();
             my = 1.5f*FONTH*tsz;
         }
         if(mapinfo)
         {
-            pushhudmatrix();
-            hudmatrix.translate(x+mx, y+my, 0);
-            hudmatrix.scale(msz, msz, 1);
-            flushhudmatrix();
+            pushhudtranslate(x+mx, y+my, msz);
             draw_text(mapinfo, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF, -1, infowidth);
             pophudmatrix();
         }
     }
 
     glDisable(GL_BLEND);
-
-    gle::disable();
 }
 
 VAR(menumute, 0, 1, 1);
@@ -266,25 +254,7 @@ void renderbackground(const char *caption, Texture *mapshot, const char *mapname
 
     loopi(3)
     {
-        if(ovr::enabled)
-        {
-            aspect = forceaspect ? forceaspect : hudw/float(hudh);
-            for(viewidx = 0; viewidx < 2; viewidx++, hudx += hudw)
-            {
-                if(!i)
-                {
-                    glBindFramebuffer_(GL_FRAMEBUFFER, ovr::lensfbo[viewidx]);
-                    glViewport(0, 0, hudw, hudh);
-                    glClearColor(0, 0, 0, 0);
-                    glClear(GL_COLOR_BUFFER_BIT);
-                    renderbackgroundview(w, h, caption, mapshot, mapname, mapinfo);
-                }
-                ovr::warp();
-            }
-            viewidx = 0;
-            hudx = 0;
-        }
-        else renderbackgroundview(w, h, caption, mapshot, mapname, mapinfo);
+        renderbackgroundview(w, h, caption, mapshot, mapname, mapinfo);
         swapbuffers(false);
     }
 
@@ -344,17 +314,13 @@ void renderprogressview(int w, int h, float bar, const char *text)   // also use
         int tw = text_width(text);
         float tsz = bh*0.6f/FONTH;
         if(tw*tsz > mw) tsz = mw/tw;
-        pushhudmatrix();
-        hudmatrix.translate(bx+sw, by + (bh - FONTH*tsz)/2, 0);
-        hudmatrix.scale(tsz, tsz, 1);
-        flushhudmatrix();
+    
+        pushhudtranslate(bx+sw, by + (bh - FONTH*tsz)/2, tsz);
         draw_text(text, 0, 0);
         pophudmatrix();
     }
 
     glDisable(GL_BLEND);
-
-    gle::disable();
 }
 
 void renderprogress(float bar, const char *text, bool background)   // also used during loading
@@ -372,30 +338,8 @@ void renderprogress(float bar, const char *text, bool background)   // also used
     getbackgroundres(w, h);
     gettextres(w, h);
 
-    if(ovr::enabled)
-    {
-        aspect = forceaspect ? forceaspect : hudw/float(hudh);
-        for(viewidx = 0; viewidx < 2; viewidx++, hudx += hudw)
-        {
-            glBindFramebuffer_(GL_FRAMEBUFFER, ovr::lensfbo[viewidx]);
-            glViewport(0, 0, hudw, hudh);
-            if(background)
-            {
-                glClearColor(0, 0, 0, 0);
-                glClear(GL_COLOR_BUFFER_BIT);
-                restorebackground(w, h);
-            }
-            renderprogressview(w, h, bar, text);
-            ovr::warp();
-        }
-        viewidx = 0;
-        hudx = 0;
-    }
-    else
-    {
-        if(background) restorebackground(w, h);
-        renderprogressview(w, h, bar, text);
-    }
+    if(background) restorebackground(w, h);
+    renderprogressview(w, h, bar, text);
     swapbuffers(false);
 }
 
@@ -470,7 +414,6 @@ void setfullscreen(bool enable)
         if(initwindowpos)
         {
             int winx = SDL_WINDOWPOS_CENTERED, winy = SDL_WINDOWPOS_CENTERED;
-            if(ovr::enabled) winx = winy = 0;
             SDL_SetWindowPosition(screen, winx, winy);
             initwindowpos = false;
         }
@@ -569,7 +512,6 @@ void setupscreen()
         flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
         initwindowpos = true;
     }
-    if(ovr::enabled) winx = winy = 0;
 
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 0);
@@ -862,6 +804,7 @@ void checkinput()
 void swapbuffers(bool overlay)
 {
     recorder::capture(overlay);
+    gle::disable();
     SDL_GL_SwapWindow(screen);
 }
 
@@ -1203,7 +1146,6 @@ int main(int argc, char **argv)
         updatetime();
 
         checkinput();
-        ovr::update();
         UI::update();
         menuprocess();
         tryedit();
