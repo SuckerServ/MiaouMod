@@ -232,6 +232,8 @@ namespace entities
         }
     }
 
+    VARR(teleteam, 0, 1, 1);
+
     void trypickup(int n, gameent *d)
     {
         switch(ents[n]->type)
@@ -247,6 +249,7 @@ namespace entities
             case TELEPORT:
             {
                 if(d->lastpickup==ents[n]->type && lastmillis-d->lastpickupmillis<500) break;
+                if(!teleteam && m_teammode) break;
                 if(ents[n]->attr3 > 0)
                 {
                     defformatstring(hookname, "can_teleport_%d", ents[n]->attr3);
@@ -264,12 +267,11 @@ namespace entities
                 d->lastpickup = ents[n]->type;
                 d->lastpickupmillis = lastmillis;
                 jumppadeffects(d, n, true);
-                vec v((int)(char)ents[n]->attr3*10.0f, (int)(char)ents[n]->attr2*10.0f, ents[n]->attr1*12.5f);
                 if(d->ai) d->ai->becareful = true;
                 d->falling = vec(0, 0, 0);
                 d->physstate = PHYS_FALL;
                 d->timeinair = 1;
-                d->vel = v;
+                d->vel = vec(ents[n]->attr3*10.0f, ents[n]->attr2*10.0f, ents[n]->attr1*12.5f);
                 break;
             }
         }
